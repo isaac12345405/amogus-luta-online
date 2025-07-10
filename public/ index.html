@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Among Us Fight Online</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game">
+    <div id="background"></div>
+    <div id="players"></div>
+  </div>
+  <script>
+    const socket = new WebSocket(`ws://${location.host}`);
+    let playerId = null;
+    let players = {};
+    let myPlayer = { x: 100, y: 50, hp: 100 };
+    const playersDiv = document.getElementById('players');
+
+    socket.onmessage = (msg) => {
+      const data = JSON.parse(msg.data);
+      if (data.type === 'init') {
+        playerId = data.id;
+        players = data.players;
+      } else if (data.type === 'update') {
+        players = data.players;
+      }
+      renderPlayers();
+    };
+
+    function renderPlayers() {
+      playersDiv.innerHTML = '';
+      Object.entries(players).forEach(([id, p]) => {
+        const div = document.createElement('div');
+        div.className = 'player';
+        div.style.left = p.x + 'px';
+        div.style.bottom = p.y + 'px';
+        div.style.backgroundImage = id === playerId
+          ? "url('https://i.imgur.com/2yaf2wb.png')"
+          : "url('https://i.imgur.com/QD1zPvc.png')";
+        const life = document.createElement('div');
+        life.className = 'life-bar';
+        life.style.width = p.hp * 0.5 + 'px';
+        div.appendChild(life);
+        playersDiv.appendChild(div);
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!myPlayer.hp) return;
+
+      switch (e.key) {
+        case 'a': myPlayer.x -= 10; break;
+        case 'd': myPlayer.x += 10; break;
+        case 'w': myPlayer.y += 10; break;
+        case 's': myPlayer.y -= 10; break;
+        case 'f':
+          Object.entries(players).forEach(([id, enemy]) => {
+            if (id !== playerId && Math.abs(myPlayer.x - enemy.x) < 60) {
+              enemy.hp = Math.max(0, enemy.hp - 10);
+            }
+          });
+          break;
+      }
+
+      socket.send(JSON.stringify({ type: 'move', player: myPlayer }));
+    });
+  </script>
+</body>
+</html>
